@@ -1,0 +1,79 @@
+# -------------------------- 系统通用缓存文件 --------------------------
+# 操作系统临时文件
+*.tmp
+*.temp
+*.swp
+*~
+.DS_Store  # macOS 资源库文件
+Thumbs.db  # Windows 缩略图缓存
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# -------------------------- Android Studio IDE 缓存 --------------------------
+# IDE 配置与缓存
+.idea/
+!/.idea/codeStyles/
+!/.idea/inspectionProfiles/
+!/.idea/runConfigurations/
+!/.idea/vcs.xml  # 版本控制配置保留（可选，如需共享提交规范可保留）
+.idea/libraries/  # 自动生成的依赖库索引（必排除）
+.idea/modules.xml
+.idea/workspace.xml
+.idea/caches/
+.idea/logs/
+.idea/gradle.xml
+.idea/misc.xml
+.idea/shelf/
+.idea/tasks.xml
+.idea/vcs.xml.bak
+
+# 项目配置文件（本地环境相关，不共享）
+local.properties  # 包含 SDK 路径等本地配置
+gradle.properties  # 本地 Gradle 配置（如需共享构建参数可删除此行）
+*.iws  # IDEA 旧版本配置文件
+*.iml  # 模块依赖配置（自动生成，必排除）
+*.ipr  # 项目配置（本地环境相关）
+
+# -------------------------- 构建产物与运行时缓存 --------------------------
+# 编译输出目录
+build/  # 项目根目录构建产物
+*/build/  # 模块目录构建产物（如 app/build、library/build）
+*/src/*/build/
+!gradle/wrapper/gradle-wrapper.jar  # 保留 Gradle 包装器（必保留，确保构建一致性）
+
+# 依赖库缓存
+.gradle/  # Gradle 本地缓存（包含下载的依赖包、构建缓存）
+gradle/caches/
+gradle/wrapper/dists/  # Gradle 分发版缓存（可排除，首次构建会自动下载）
+
+# 运行时缓存与日志
+*.apk  # 编译生成的安装包
+*.ap_  # 未签名的 APK 中间产物
+*.aab  # Android App Bundle 产物
+*.dex  # Dalvik 字节码文件
+*.class  # Java 编译后的字节码文件
+*.so  # 原生库文件（如 NDK 构建产物，如需共享自定义 so 可删除此行）
+*.aar  # 库模块打包产物
+*.jar  # 依赖 jar 包（如需共享本地 libs 目录的 jar 可调整）
+!*/libs/*.jar  # 如需保留本地 libs 目录的手动依赖 jar，取消此行注释（默认排除自动下载的依赖）
+
+# 测试与日志文件
+test-results/  # 测试结果
+coverage/  # 代码覆盖率报告
+logs/  # 日志文件
+*.log
+crashlytics-build.properties  # Crashlytics 构建配置（自动生成）
+fabric.properties  # Fabric 配置（自动生成）
+
+# 其他运行时文件
+proguard/  # 混淆配置生成的文件
+mapping.txt  # 混淆映射文件（如需保留用于崩溃分析可删除此行）
+consumer-rules.pro  # 自动生成的消费者混淆规则
+.Rapporteket  # 部分第三方工具缓存
+*.bak  # 备份文件
+*.orig  # 冲突解决备份文件
+*.rej  # 冲突标记文件

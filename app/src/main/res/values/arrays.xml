@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 修改时间：20251117 22:35 - 添加分类选项数组 -->
+    <string-array name="category_options">
+        <item>请选择分类</item>
+        <item>学习成长</item>
+        <item>工作事业</item>
+        <item>家庭生活</item>
+        <item>健康休闲</item>
+        <item>社会交际</item>
+        <item>交通时间</item>
+        <item>睡眠时间</item>
+    </string-array>
+</resources>

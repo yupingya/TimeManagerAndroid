@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#333333</color>
+    <color name="white">#EEEEEE</color>
+
+    <color name="bg_primary">#333333</color>
+    <color name="bg_surface">#333333</color>
+
+    <color name="dark_gray">#333333</color>
+
+    <color name="light_gray">#EEEEEE</color>
+</resources>

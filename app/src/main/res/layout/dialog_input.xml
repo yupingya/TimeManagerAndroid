@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- fragment_input_dialog.xml
+     对话框布局：支持滚动并确保按钮不会被挤出视图。
+     保留原有控件 ID（txtCategory, txtDetail, btnOK, btnCancel）以保证代码回调不变。
+     修改时间：20251117 22:30 - 调整按钮布局为左右排列，确认在右，取消在左
+     修改时间：20251117 22:35 - 将分类输入框改为下拉选择框
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dialog_scroll"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fillViewport="true"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:id="@+id/dialog_root"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- 标题（可选） -->
+        <TextView
+            android:id="@+id/dialog_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/dialog_title_lap"
+            android:textSize="18sp"
+            android:paddingBottom="8dp"
+            android:gravity="center" />
+
+        <!-- 分类输入 -->
+        <TextView
+            android:id="@+id/labelCategory"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/label_category"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp" />
+
+        <!-- 修改时间：20251117 22:35 - 将EditText改为Spinner下拉选择框 -->
+        <Spinner
+            android:id="@+id/spnCategory"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:layout_marginBottom="8dp"
+            android:entries="@array/category_options"
+            android:spinnerMode="dropdown" />
+
+        <!-- 具体事件输入 -->
+        <TextView
+            android:id="@+id/labelDetail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/label_detail"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp" />
+
+        <EditText
+            android:id="@+id/txtDetail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/hint_detail"
+            android:inputType="textMultiLine"
+            android:padding="8dp"
+            android:lines="3"
+            android:gravity="top"
+            android:layout_marginBottom="12dp" />
+
+        <!-- 按钮行：使用 LinearLayout 保证按钮水平排列且宽度适配 -->
+        <!-- 修改时间：20251117 22:30 - 调整按钮布局为左右排列，确认在右，取消在左 -->
+        <LinearLayout
+            android:id="@+id/dialog_button_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_horizontal"
+            android:weightSum="2">
+
+            <!-- 取消按钮放在左边 -->
+            <Button
+                android:id="@+id/btnCancel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:text="@string/btn_cancel"/>
+
+            <!-- 确认按钮放在右边 -->
+            <Button
+                android:id="@+id/btnOK"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:text="@string/btn_ok"/>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
