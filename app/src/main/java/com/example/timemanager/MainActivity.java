@@ -354,7 +354,7 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
     }
 
     /**
-     * 更新计时器的Runnable - 未修改（保持原有逻辑）
+     * 更新计时器的Runnable  -  未修改（保持原有逻辑）
      */
     private final Runnable updateTimerRunnable = new Runnable() {
         @Override
