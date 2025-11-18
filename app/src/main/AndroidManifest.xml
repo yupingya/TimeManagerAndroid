@@ -3,7 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    <!-- 增加READ_EXTERNAL_STORAGE权限以配合写入操作，适配权限一致性 2024-05-20 15:30 -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
 
+    <!-- 修正tools:targetApi属性位置，与其他属性保持同一层级 2024-05-20 15:31 -->
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -12,7 +15,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.TimeManager"  tools:targetApi="31">
+        android:theme="@style/Theme.TimeManager"
+        tools:targetApi="31">
 
         <activity
             android:name=".MainActivity"

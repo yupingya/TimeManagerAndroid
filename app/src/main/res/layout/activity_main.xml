@@ -10,6 +10,11 @@
     android:background="?attr/colorSurface"
     tools:context=".MainActivity">
 
+    <!-- 修改时间：20251118 16:45 - 调整空白高度至60dp（约三行文字高度），确保组件下移效果明显 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="60dp"/>
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

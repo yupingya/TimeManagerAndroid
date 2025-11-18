@@ -87,6 +87,10 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // 启动保活服务（新增代码）
+        DaemonManager.startDaemonService(this);
+
+        // 原有初始化逻辑保持不变
         handler = new Handler();
         loadState();
 
@@ -509,6 +513,7 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         saveState();
     }
 
+    // 修改onDestroy方法
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -516,6 +521,8 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
             systemTimeTimer.cancel();
         }
         handler.removeCallbacksAndMessages(null);
+        // 停止保活服务（新增代码）
+        DaemonManager.stopDaemonService(this);
     }
 
     /**
