@@ -84,9 +84,6 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         sharedPreferences = getPreferences(Context.MODE_PRIVATE);
         loadModeState();
 
-        sharedPreferences = getPreferences(Context.MODE_PRIVATE);
-        loadModeState();
-
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -94,9 +91,6 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         DaemonManager.startDaemonService(this);
 
         // 原有初始化逻辑保持不变
-        handler = new Handler();
-        loadState();
-
         handler = new Handler();
         loadState();
 
@@ -364,7 +358,7 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
     }
 
     /**
-     * 更新计时器的Runnable - 未修改（保持原有逻辑）
+     * 更新计时器的Runnable  -  未修改（保持原有逻辑）
      */
     private final Runnable updateTimerRunnable = new Runnable() {
         @Override
