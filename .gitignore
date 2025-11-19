@@ -31,6 +31,21 @@ Desktop.ini
 .idea/tasks.xml
 .idea/vcs.xml.bak
 
+# Gradle 缓存和构建产物
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar  # 保留 gradle-wrapper.jar（项目依赖的 Gradle 版本包）
+
+# 其他常见排除项（可选，建议添加，避免后续其他缓存文件干扰）
+.idea/  # Android Studio/IntelliJ 的配置目录
+*.iml
+*.ipr
+*.iws
+app/build/
+
+# 排除特定的release目录
+app/release/
+
 # 项目配置文件（本地环境相关，不共享）
 local.properties  # 包含 SDK 路径等本地配置
 gradle.properties  # 本地 Gradle 配置（如需共享构建参数可删除此行）
