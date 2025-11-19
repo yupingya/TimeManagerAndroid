@@ -40,28 +40,52 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * MainActivity
+ * 修改时间：2025-11-19 15:15 - 深度重构：
+ * 1. 修复后台切换导致的计时重置和负数溢出问题。
+ * 2. 移除冗余的 formatTime 方法，统一调用 LapRecord.formatTime。
+ * 3. 优化 LapRecord 对象创建逻辑，传递原始 Long 数据。
+ */
 public class MainActivity extends AppCompatActivity implements InputDialogFragment.InputDialogListener {
 
+    /** 日志标签，用于标识当前应用的日志信息 */
     private static final String TAG = "TimeManagerApp";
 
     // UI 控件变量
+    /** 主布局容器，用于设置整体背景颜色等样式 */
     private LinearLayout mainLayout;
+    /** 显示星期的文本控件 */
     private TextView lblWeekday;
+    /** 显示系统日期的文本控件 */
     private TextView lblSystemDate;
+    /** 显示系统时间（包含毫秒）的文本控件 */
     private TextView lblSystemTime;
+    /** 显示计时器当前时间的文本控件 */
     private TextView lblTime;
+    /** 开始/暂停计时器的按钮 */
     private Button btnStartPause;
+    /** 记录分段时间的按钮 */
     private Button btnLap;
+    /** 重置计时器的按钮 */
     private Button btnReset;
+    /** 导出记录数据的按钮 */
     private Button btnExport;
+    /** 切换日夜模式的按钮 */
     private Button btnMode;
+    /** 分段列表头部布局（标题行） */
     private LinearLayout lapHeaderRow;
+    /** 显示分段记录的RecyclerView */
     private androidx.recyclerview.widget.RecyclerView recyclerViewLaps;
+    /** 分段记录的适配器，用于RecyclerView的数据绑定 */
     private LapAdapter lapAdapter;
 
     // 功能相关变量
+    /** 用于在主线程更新UI的Handler */
     private Handler handler;
+    /** 用于定时更新系统时间显示的Timer */
     private Timer systemTimeTimer;
+    /** 计时开始基准时间（每次开始/继续时更新），用于计算累计计时时间 */
     private long startTimeMillis; // 计时开始基准时间（每次开始/继续时更新）
     private long elapsedMillis; // 累计计时时间（不包括暂停时间）
     private long pauseOffsetMillis; // 暂停时的累计时间
@@ -71,7 +95,7 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
     private boolean isNight = false;
     private SharedPreferences sharedPreferences;
 
-    // 分隔时间和累计分隔相关新增变量（对应C#软件逻辑）- 修改时间：20251117 10:15
+    // 分隔时间和累计分隔相关新增变量（对应C#软件逻辑）
     private long startTimeForLap; // 每次开始计时的时间（用于记录"开始时间"字段和计算分段时间）
     private long lastLapEndElapsedMillis = 0; // 上次分隔结束时的计时时间（用于计算本次分隔时间）
     private long totalLapAccumulatedMillis = 0; // 累计分隔时间总和（对应"分隔累计"列）
@@ -79,6 +103,11 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
     // 文件导出相关
     private ActivityResultLauncher<String> fileSaverLauncher;
 
+    /**
+     * 活动创建时的初始化方法
+     * 时间：初始创建
+     * 功能：加载保存的模式状态、设置布局、初始化控件、注册监听器、启动系统时间计时器等
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         sharedPreferences = getPreferences(Context.MODE_PRIVATE);
@@ -87,7 +116,7 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // 启动保活服务（新增代码）
+        // 启动保活服务
         DaemonManager.startDaemonService(this);
 
         // 原有初始化逻辑保持不变
@@ -135,8 +164,11 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
 
         initSystemTimeTimer();
 
+        // 修改时间：2025-11-19 15:18 - 保持后台恢复逻辑的修正
+        // 关键点：Activity重建时，不调用 startTimer() 避免基准时间 startTimeMillis 被错误重置
         if (isRunning) {
-            startTimer();
+            btnStartPause.setText(R.string.btn_pause);
+            handler.post(updateTimerRunnable);
         } else {
             elapsedMillis = pauseOffsetMillis;
             updateTimerText();
@@ -144,6 +176,11 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         }
     }
 
+    /**
+     * 切换日夜模式
+     * 时间：初始创建
+     * 功能：切换isNight状态，保存模式状态到SharedPreferences，并应用对应模式的主题
+     */
     private void toggleMode() {
         isNight = !isNight;
 
@@ -158,11 +195,21 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         }
     }
 
+    /**
+     * 应用深色模式
+     * 时间：初始创建
+     * 功能：设置isNight为true，并调用统一主题应用方法应用深色模式颜色
+     */
     private void applyDarkMode() {
         isNight = true;
         applyThemeColors(true);
     }
 
+    /**
+     * 应用浅色模式
+     * 时间：初始创建
+     * 功能：设置isNight为false，并调用统一主题应用方法应用浅色模式颜色
+     */
     private void applyLightMode() {
         isNight = false;
         applyThemeColors(false);
@@ -170,6 +217,9 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
 
     /**
      * 统一的主题颜色应用方法
+     * 时间：初始创建
+     * 功能：根据日夜模式状态，为所有UI元素设置对应的主题颜色（背景、文本、按钮等）
+     * @param isNightMode 是否为夜间模式
      */
     private void applyThemeColors(boolean isNightMode) {
         // 使用 ColorUtils 获取颜色
@@ -207,6 +257,13 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         btnMode.setText(isNightMode ? R.string.btn_mode_day : R.string.btn_mode_night);
     }
 
+    /**
+     * 设置分段列表头文本颜色
+     * 时间：初始创建
+     * 功能：递归设置分段列表头部所有文本控件的颜色
+     * @param headerView 列表头布局视图
+     * @param color 要设置的文本颜色
+     */
     private void setLapHeaderTextColor(View headerView, int color) {
         if (headerView instanceof ViewGroup) {
             ViewGroup viewGroup = (ViewGroup) headerView;
@@ -215,7 +272,7 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
                 if (child instanceof TextView) {
                     ((TextView) child).setTextColor(color);
                 } else if (child instanceof ViewGroup) {
-                    setLapHeaderTextColor(child, color); // 递归处理
+                    setLapHeaderTextColor(child, color);    // 递归处理
                 }
             }
         }
@@ -225,6 +282,11 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
     // ⏰ 计时器和状态管理
     // ----------------------------------------------------
 
+    /**
+     * 更新系统时间显示
+     * 时间：初始创建
+     * 功能：获取当前系统时间，格式化后更新星期、日期、时间（含毫秒）的显示
+     */
     private void updateSystemTime() {
         long nowMillis = System.currentTimeMillis();
         Date now = new Date(nowMillis);
@@ -244,6 +306,11 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         lblSystemTime.setText(String.format(Locale.getDefault(), "%s.%02d", formattedTime, centiseconds));
     }
 
+    /**
+     * 初始化系统时间计时器
+     * 时间：初始创建
+     * 功能：创建并启动定时任务，每10毫秒调用一次updateSystemTime更新系统时间显示
+     */
     private void initSystemTimeTimer() {
         if (systemTimeTimer != null) {
             systemTimeTimer.cancel();
@@ -258,64 +325,61 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
     }
 
     /**
-     * 开始计时 - 修改时间：20251117 10:18
-     * 新增记录每次开始计时的时间（startTimeForLap），用于"开始时间"字段和分段时间计算
+     * 开始计时
+     * 时间：20251119 20:05
+     * 功能：设置计时器为运行状态，计算计时基准时间，记录本次开始计时的实际时间（用于"开始时间"字段），启动计时器更新任务
      */
     private void startTimer() {
         isRunning = true;
-        // 计算本次开始计时的基准时间（确保累计时间连续）
         startTimeMillis = System.currentTimeMillis() - elapsedMillis;
-        // 记录本次开始计时的实际时间（用于填充"开始时间"字段）
-        startTimeForLap = System.currentTimeMillis() - elapsedMillis;
+        // 关键修改：将开始时间改为点击开始按钮时的当前系统时间，不再减去已累计时间
+        startTimeForLap = System.currentTimeMillis();
         btnStartPause.setText(R.string.btn_pause);
         handler.post(updateTimerRunnable);
     }
 
     /**
-     * 切换开始/暂停状态 - 修改时间：20251117 10:20
-     * 保持原有逻辑，仅确保startTimeForLap在开始时正确设置
+     * 切换开始/暂停状态
+     * 时间：20251117 10:20
+     * 功能：如果正在运行则暂停计时（保存当前累计时间），如果已暂停则调用startTimer继续计时，最后保存状态
      */
     private void toggleStartPause() {
         if (isRunning) {
-            // 暂停计时
             isRunning = false;
-            pauseOffsetMillis = elapsedMillis; // 保存当前累计时间
+            pauseOffsetMillis = elapsedMillis;
             handler.removeCallbacks(updateTimerRunnable);
             btnStartPause.setText(R.string.btn_start);
         } else {
-            // 开始/继续计时（startTimer方法已处理startTimeForLap）
             startTimer();
         }
         saveState();
     }
 
     /**
-     * 记录分段（分隔）- 修改时间：20251117 10:25
-     * 按照C#软件逻辑修改：暂停计时→计算分隔时间→计算累计分隔时间→记录相关时间字段
+     * 记录分段（分隔）
+     * 时间：20251117 10:25
+     * 功能：当计时器运行时，暂停计时并计算本次分段时间、累计分段时间，显示输入对话框获取分段信息
      */
     private void recordLap() {
         if (!isRunning) {
             Toast.makeText(this, R.string.toast_start_first, Toast.LENGTH_SHORT).show();
             return;
         }
-
         // 1. 暂停计时（保持暂停状态，等待用户后续操作）
         isRunning = false;
         handler.removeCallbacks(updateTimerRunnable);
         btnStartPause.setText(R.string.btn_start);
-        pauseOffsetMillis = elapsedMillis; // 保存当前累计时间
-
+        pauseOffsetMillis = elapsedMillis;
         // 2. 计算核心数据（按照C#逻辑）
-        long currentElapsed = elapsedMillis; // 当前累计计时时间
-        long currentLapTime = currentElapsed - lastLapEndElapsedMillis; // 本次分隔时间（当前-上次分隔结束时间）
+        long currentElapsed = elapsedMillis;
+        long currentLapTime = currentElapsed - lastLapEndElapsedMillis;
         lastLapEndElapsedMillis = currentElapsed;
-        totalLapAccumulatedMillis += currentLapTime; // 累计分隔时间（总和累加）
-
+        totalLapAccumulatedMillis += currentLapTime;
         // 3. 格式化时间字段（保持原有格式，不修改）
         SimpleDateFormat timeFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
-        String startTimeStr = timeFormatter.format(new Date(startTimeForLap)); // 开始时间（本次点击开始的时间）
-        String recordTimeStr = timeFormatter.format(new Date(System.currentTimeMillis())); // 记录数据（点击分隔的时间）
-        String dateStr = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date(System.currentTimeMillis())); // 日期
+        String startTimeStr = timeFormatter.format(new Date(startTimeForLap));
+        String recordTimeStr = timeFormatter.format(new Date(System.currentTimeMillis()));
+        String dateStr = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date(System.currentTimeMillis()));
 
         // 4. 显示输入对话框（保持原有逻辑）
         InputDialogFragment dialog = new InputDialogFragment();
@@ -331,8 +395,9 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
     }
 
     /**
-     * 重置计时器 - 修改时间：20251117 10:30
-     * 新增重置分隔相关变量，确保状态完全重置
+     * 重置计时器
+     * 时间：20251117 10:30
+     * 功能：停止计时器（如果正在运行），重置所有计时相关变量（包括分段相关变量），清空分段记录并更新UI
      */
     private void resetTimer() {
         if (isRunning) {
@@ -351,32 +416,39 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         // 清空分段记录
         lapRecords.clear();
         lapAdapter.notifyDataSetChanged();
-        // 更新UI
         updateTimerText();
         btnStartPause.setText(R.string.btn_start);
         saveState();
     }
 
     /**
-     * 更新计时器的Runnable  -  未修改（保持原有逻辑）
+     * 更新计时器的Runnable
+     * 时间：未修改（初始创建）
+     * 功能：计算当前累计计时时间，更新计时器文本，并延迟10毫秒再次执行（实现持续计时）
      */
     private final Runnable updateTimerRunnable = new Runnable() {
         @Override
         public void run() {
-            // 计算从基准时间到当前的累计时间
             elapsedMillis = System.currentTimeMillis() - startTimeMillis;
             updateTimerText();
             handler.postDelayed(this, 10);
         }
     };
 
+    /**
+     * 更新计时器显示文本
+     * 时间：初始创建
+     * 功能：调用formatTime方法格式化累计时间，并更新到lblTime控件
+     */
+    // 修改时间：2025-11-19 15:20 - 使用 LapRecord 中的静态方法进行格式化
     private void updateTimerText() {
-        lblTime.setText(formatTime(elapsedMillis));
+        lblTime.setText(LapRecord.formatTime(elapsedMillis));
     }
 
     /**
-     * 保存状态 - 修改时间：20251117 10:33
-     * 新增分隔相关变量的保存，确保重启后状态恢复
+     * 保存状态
+     * 时间：20251117 10:33
+     * 功能：将计时器运行状态、时间变量、分段记录等数据保存到SharedPreferences，确保应用重启后可恢复状态
      */
     private void saveState() {
         SharedPreferences.Editor editor = sharedPreferences.edit();
@@ -398,13 +470,19 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         Log.d(TAG, "State saved. isRunning: " + isRunning + ", Records: " + lapRecords.size());
     }
 
+    /**
+     * 加载模式状态
+     * 时间：初始创建
+     * 功能：从SharedPreferences加载日夜模式状态（isNight）
+     */
     private void loadModeState() {
         isNight = sharedPreferences.getBoolean("isNight", false);
     }
 
     /**
-     * 加载状态 - 修改时间：20251117 10:35
-     * 新增分隔相关变量的加载，确保重启后状态恢复
+     * 加载状态
+     * 时间：20251117 10:35
+     * 功能：从SharedPreferences加载计时器所有状态数据（运行状态、时间变量、分段记录、分段相关变量等）
      */
     private void loadState() {
         isRunning = sharedPreferences.getBoolean("isRunning", false);
@@ -412,7 +490,6 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         startTimeMillis = sharedPreferences.getLong("startTimeMillis", 0);
         lapIndex = sharedPreferences.getInt("lapIndex", 0);
         isNight = sharedPreferences.getBoolean("isNight", false);
-        // 新增加载分隔相关变量
         startTimeForLap = sharedPreferences.getLong("startTimeForLap", 0);
         lastLapEndElapsedMillis = sharedPreferences.getLong("lastLapEndElapsedMillis", 0);
         totalLapAccumulatedMillis = sharedPreferences.getLong("totalLapAccumulatedMillis", 0);
@@ -430,7 +507,9 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
     }
 
     /**
-     * 导出数据 - 修改时间：20251117 22:05 - 修改为导出Excel文件
+     * 导出数据
+     * 时间：20251117 22:05
+     * 功能：当存在分段记录时，启动文件保存活动，导出数据为Excel文件
      */
     private void exportData() {
         if (lapRecords.isEmpty()) {
@@ -450,24 +529,28 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
     }
 
     /**
-     * 写入文件到URI - 修改时间：20251117 22:05 - 修改为使用Excel导出工具
+     * 写入文件到URI
+     * 时间：20251117 22:05
+     * 功能：通过ExcelExportUtil工具类将分段记录数据写入到指定的Uri（导出为Excel文件）
+     * @param uri 文件保存的Uri
      */
     private void writeFileToUri(Uri uri) {
         if (uri == null) {
             return;
         }
-
-        // 使用新的Excel导出工具类导出数据
         boolean success = ExcelExportUtil.exportLapRecordsToExcel(this, uri, lapRecords);
-
         if (!success) {
             Log.e(TAG, "Export failed");
         }
     }
 
     /**
-     * 输入对话框完成回调 - 修改时间：20251117 10:40
-     * 按照C#逻辑构造LapRecord：分隔=本次分段时间，分隔累计=总累计时间，其他字段保持原有逻辑
+     * 修改时间：2025-11-19 15:25 - 使用更新后的 LapRecord 构造函数，传递 long 原始值
+     * 输入对话框完成回调
+     * 时间：20251117 10:40
+     * 功能：获取用户输入的分段类别和详情，结合之前计算的时间数据创建LapRecord并添加到列表，更新UI和状态
+     * @param category 分段种类
+     * @param detail 具体事件
      */
     @Override
     public void onFinishInputDialog(String category, String detail) {
@@ -480,40 +563,49 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         long totalLapAccumulated = bundle.getLong("totalLapAccumulatedMillis");
         String startTimeStr = bundle.getString("startTimeStr");
         String recordTimeStr = bundle.getString("recordTimeStr");
-
         // 序号自增（保持原有逻辑）
         lapIndex++;
 
+        // 直接传入 long 类型数据 (currentLapTime, totalLapAccumulated)
+        // LapRecord 内部会自动处理格式化
         // 构造LapRecord（严格对应字段顺序：序号、日期、分隔、分隔累计、开始时间、记录数据、时间戳、分段种类、具体事件）
         LapRecord newRecord = new LapRecord(
                 lapIndex,
-                dateStr,                    // 日期（不修改）
-                formatTime(currentLapTime), // 分隔（本次分段时间，对应C#分段时间）
-                formatTime(totalLapAccumulated), // 分隔累计（总累计时间，对应C#累计时间）
-                startTimeStr,               // 开始时间（点击开始按钮时的时间，不修改）
-                recordTimeStr,              // 记录数据（点击分隔按钮时的时间，不修改）
-                System.currentTimeMillis(), // 系统时间戳（不修改）
-                category,                   // 分段种类（不修改）
-                detail                      // 具体事件（不修改）
+                dateStr,                        // 日期（不修改）
+                currentLapTime,                 // 原始间隔时间 (long)
+                totalLapAccumulated,            // 原始累计时间 (long)
+                startTimeStr,                   // 开始时间（点击开始按钮时的时间，不修改）
+                recordTimeStr,                  // 记录数据（点击分隔按钮时的时间，不修改）
+                System.currentTimeMillis(),     // 系统时间戳（不修改）
+                category,                       // 分段种类（不修改）
+                detail                          // 具体事件（不修改）
         );
 
         lapRecords.add(newRecord);
         lapAdapter.notifyItemInserted(lapRecords.size() - 1);
         recyclerViewLaps.scrollToPosition(lapRecords.size() - 1);
-
         // 更新上次分隔结束时间基准（用于下次分段计算）
         lastLapEndElapsedMillis = elapsedMillis;
 
         saveState();
     }
 
+    /**
+     * 活动停止时的回调
+     * 时间：初始创建
+     * 功能：调用saveState保存当前状态
+     */
     @Override
     protected void onStop() {
         super.onStop();
         saveState();
     }
 
-    // 修改onDestroy方法
+    /**
+     * 活动销毁时的回调
+     * 时间：初始创建（含新增停止服务代码）
+     * 功能：取消系统时间计时器，移除Handler的所有回调，停止保活服务
+     */
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -523,17 +615,5 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         handler.removeCallbacksAndMessages(null);
         // 停止保活服务（新增代码）
         DaemonManager.stopDaemonService(this);
-    }
-
-    /**
-     * 时间格式化工具 - 未修改（保持原有格式）
-     */
-    private String formatTime(long millis) {
-        long hours = TimeUnit.MILLISECONDS.toHours(millis);
-        long minutes = TimeUnit.MILLISECONDS.toMinutes(millis) % 60;
-        long seconds = TimeUnit.MILLISECONDS.toSeconds(millis) % 60;
-        long centiseconds = (millis % 1000) / 10;
-
-        return String.format(Locale.getDefault(), "%d:%02d:%02d.%02d", hours, minutes, seconds, centiseconds);
     }
 }
