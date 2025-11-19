@@ -3,153 +3,107 @@ package com.example.timemanager;
 import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
-import android.widget.Toast;
-
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Locale;
 
 /**
- * Excel导出工具类 - 使用轻量级实现避免兼容性问题
- * 修改时间：20251117 22:05 - 替换POI库为轻量级实现
+ * ExcelExportUtil - 负责将分段记录导出为 Excel 兼容的 CSV 文件。
  */
 public class ExcelExportUtil {
+
     private static final String TAG = "ExcelExportUtil";
+    private static final String CSV_SEPARATOR = ","; // 使用逗号分隔符
 
     /**
-     * 导出分段记录数据到XLSX文件
-     * 修改时间：20251117 22:05 - 使用轻量级实现生成Excel文件
-     */
-    public static boolean exportLapRecordsToExcel(Context context, Uri uri,
-                                                  List<LapRecord> lapRecords,
-                                                  int successMsg, int failMsg) {
-        if (uri == null || lapRecords == null || lapRecords.isEmpty()) {
-            return false;
-        }
-
-        try (OutputStream outputStream = context.getContentResolver().openOutputStream(uri)) {
-            // 生成Excel XML内容
-            String excelContent = generateExcelContent(lapRecords);
-
-            // 写入到输出流
-            outputStream.write(excelContent.getBytes("UTF-8"));
-            outputStream.flush();
-
-            if (successMsg != 0) {
-                Toast.makeText(context, successMsg, Toast.LENGTH_LONG).show();
-            }
-            return true;
-
-        } catch (IOException e) {
-            Log.e(TAG, "Error writing Excel file: ", e);
-            if (failMsg != 0) {
-                String errorMsg = context.getString(failMsg) + e.getMessage();
-                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show();
-            }
-            return false;
-        } catch (Exception e) {
-            Log.e(TAG, "Unexpected error: ", e);
-            if (failMsg != 0) {
-                String errorMsg = context.getString(failMsg) + e.getMessage();
-                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show();
-            }
-            return false;
-        }
-    }
-
-    /**
-     * 生成Excel XML格式内容
-     * 修改时间：20251117 22:05 - 手动生成Excel XML格式
-     */
-    private static String generateExcelContent(List<LapRecord> lapRecords) {
-        StringBuilder sb = new StringBuilder();
-
-        // Excel XML头部
-        sb.append("<?xml version=\"1.0\"?>\n");
-        sb.append("<?mso-application progid=\"Excel.Sheet\"?>\n");
-        sb.append("<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\"\n");
-        sb.append(" xmlns:o=\"urn:schemas-microsoft-com:office:office\"\n");
-        sb.append(" xmlns:x=\"urn:schemas-microsoft-com:office:excel\"\n");
-        sb.append(" xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\"\n");
-        sb.append(" xmlns:html=\"http://www.w3.org/TR/REC-html40\">\n");
-
-        // 样式定义
-        sb.append(" <Styles>\n");
-        sb.append("  <Style ss:ID=\"Default\" ss:Name=\"Normal\">\n");
-        sb.append("   <Alignment ss:Vertical=\"Center\"/>\n");
-        sb.append("  </Style>\n");
-        sb.append("  <Style ss:ID=\"Header\">\n");
-        sb.append("   <Font ss:Bold=\"1\" ss:Color=\"#FFFFFF\"/>\n");
-        sb.append("   <Interior ss:Color=\"#366092\" ss:Pattern=\"Solid\"/>\n");
-        sb.append("   <Alignment ss:Horizontal=\"Center\" ss:Vertical=\"Center\"/>\n");
-        sb.append("  </Style>\n");
-        sb.append("  <Style ss:ID=\"Data\">\n");
-        sb.append("   <Alignment ss:Vertical=\"Center\"/>\n");
-        sb.append("  </Style>\n");
-        sb.append(" </Styles>\n");
-
-        // 工作表
-        sb.append(" <Worksheet ss:Name=\"分段记录\">\n");
-        sb.append("  <Table>\n");
-
-        // 表头
-        sb.append("   <Row>\n");
-        String[] headers = {"序号", "日期", "间隔", "间隔累计", "开始时间", "记录时间", "分段种类", "具体事件"};
-        for (String header : headers) {
-            sb.append("    <Cell ss:StyleID=\"Header\"><Data ss:Type=\"String\">").append(escapeXml(header)).append("</Data></Cell>\n");
-        }
-        sb.append("   </Row>\n");
-
-        // 数据行
-        for (LapRecord record : lapRecords) {
-            sb.append("   <Row>\n");
-            addCell(sb, String.valueOf(record.getIndex()));
-            addCell(sb, record.getDate());
-            addCell(sb, record.getInterval());
-            addCell(sb, record.getLapTime());
-            addCell(sb, record.getStartTime());
-            addCell(sb, record.getRecordTime());
-            addCell(sb, record.getCategory());
-            addCell(sb, record.getDetail());
-            sb.append("   </Row>\n");
-        }
-
-        sb.append("  </Table>\n");
-        sb.append(" </Worksheet>\n");
-        sb.append("</Workbook>");
-
-        return sb.toString();
-    }
-
-    /**
-     * 添加单元格
+     * 辅助方法：添加单元格内容并处理CSV格式（转义引号和逗号）。
+     * @param sb 用于构建CSV行的 StringBuilder
+     * @param value 单元格的值
      */
     private static void addCell(StringBuilder sb, String value) {
-        sb.append("    <Cell ss:StyleID=\"Data\"><Data ss:Type=\"String\">")
-                .append(escapeXml(value))
-                .append("</Data></Cell>\n");
+        if (value == null) {
+            value = "";
+        }
+        // 处理内容中的双引号：替换为两个双引号
+        String escapedValue = value.replace("\"", "\"\"");
+
+        // 如果内容包含逗号、换行符或双引号，则需要用双引号包裹
+        if (escapedValue.contains(CSV_SEPARATOR) || escapedValue.contains("\n") || value.contains("\"")) {
+            sb.append("\"").append(escapedValue).append("\"");
+        } else {
+            sb.append(escapedValue);
+        }
     }
 
     /**
-     * XML转义
+     * 将分段记录导出为 CSV 文件。
+     * @param context Context
+     * @param lapRecords 要导出的分段记录列表
+     * @param uri 文件保存的Uri
+     * @throws IOException 写入文件失败时抛出异常
      */
-    private static String escapeXml(String text) {
-        if (text == null) return "";
-        return text.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&apos;");
-    }
+    public static void exportRecords(Context context, List<LapRecord> lapRecords, Uri uri) throws IOException {
 
-    /**
-     * 重载方法，使用默认的成功失败消息
-     * 修改时间：20251117 22:05 - 使用轻量级实现生成Excel文件
-     */
-    public static boolean exportLapRecordsToExcel(Context context, Uri uri, List<LapRecord> lapRecords) {
-        int successMsg = context.getResources().getIdentifier("toast_export_success", "string", context.getPackageName());
-        int failMsg = context.getResources().getIdentifier("toast_export_fail", "string", context.getPackageName());
-        return exportLapRecordsToExcel(context, uri, lapRecords, successMsg, failMsg);
+        // 确保文件流被正确关闭
+        try (OutputStream outputStream = context.getContentResolver().openOutputStream(uri);
+             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8))) {
+
+            // 写入 BOM (Byte Order Mark) 以兼容 Excel 中文乱码问题 (修改时间：20251119 16:09)
+            writer.write('\ufeff');
+
+            // 写入 CSV 头部 (R.string.export_header: 序号,分段时间（间隔）,累计时间,开始时间,记录时间,分段种类,具体事件)
+            writer.write(context.getString(R.string.export_header));
+            writer.newLine();
+
+            // 使用 StringBuilder 构建每一行
+            StringBuilder sb = new StringBuilder();
+
+            // 写入记录
+            for (LapRecord record : lapRecords) {
+                sb.setLength(0); // 清空 StringBuilder
+
+                // 1. 序号
+                addCell(sb, String.valueOf(record.getIndex()));
+                sb.append(CSV_SEPARATOR);
+
+                // 2. 分段时间（间隔）
+                addCell(sb, record.getLapTime());
+                sb.append(CSV_SEPARATOR);
+
+                // 3. 累计时间
+                addCell(sb, record.getTotalTime());
+                sb.append(CSV_SEPARATOR);
+
+                // 4. 开始时间
+                addCell(sb, record.getStartTime());
+                sb.append(CSV_SEPARATOR);
+
+                // 5. 记录时间 (原报错位置，已修正)
+                // 错误修正：LapRecord 类中无 getDate() 方法，应使用 getRecordTime() (修改时间：20251119 16:09)
+                addCell(sb, record.getRecordTime());
+                sb.append(CSV_SEPARATOR);
+
+                // 6. 分段种类
+                addCell(sb, record.getCategory());
+                sb.append(CSV_SEPARATOR);
+
+                // 7. 具体事件
+                addCell(sb, record.getDetail());
+
+                // 写入行
+                writer.write(sb.toString());
+                writer.newLine();
+            }
+
+            writer.flush();
+
+        } catch (IOException e) {
+            Log.e(TAG, "Error writing CSV file: " + e.getMessage(), e);
+            // 抛出新的 IOException 让调用者处理，如在 MainActivity 中显示 Toast
+            throw new IOException(context.getString(R.string.toast_export_fail) + e.getMessage(), e);
+        }
     }
 }
