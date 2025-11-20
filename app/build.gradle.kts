@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.timemanager"
         minSdk = 24
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.2.4"
+        versionCode = 8
+        versionName = "1.3.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
