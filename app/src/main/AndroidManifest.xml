@@ -2,7 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    <!-- 【2025-11-20 16:00】修改：移除 maxSdkVersion，确保 Android 10+ 也能写 Download 目录 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <!-- 增加READ_EXTERNAL_STORAGE权限以配合写入操作，适配权限一致性 2024-05-20 15:30 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
 

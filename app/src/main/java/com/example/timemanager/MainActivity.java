@@ -114,6 +114,8 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         loadModeState();
 
         super.onCreate(savedInstanceState);
+        // 【2025-11-20 16:10】新增：记录应用启动日志
+        LogUtils.log("Application started. isNight=" + isNight + ", isRunning=" + isRunning + ", Records=" + (lapRecords != null ? lapRecords.size() : 0));
         setContentView(R.layout.activity_main);
 
         // 启动保活服务
@@ -161,8 +163,6 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         fileSaverLauncher = registerForActivityResult(
                 new ActivityResultContracts.CreateDocument("application/vnd.ms-excel"),
                 this::writeFileToUri);
-
-        initSystemTimeTimer();
 
         // 修改时间：2025-11-19 15:18 - 保持后台恢复逻辑的修正
         // 关键点：Activity重建时，不调用 startTimer() 避免基准时间 startTimeMillis 被错误重置
@@ -307,22 +307,18 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
     }
 
     /**
-     * 初始化系统时间计时器
-     * 时间：初始创建
-     * 功能：创建并启动定时任务，每10毫秒调用一次updateSystemTime更新系统时间显示
+     * 更新系统计算器
+     * 【2025-11-20 14:06】新增：使用 Handler 安全更新系统时间，避免 Timer 积压问题
+     * 功能：每 100ms 更新一次右上角的系统时间（含毫秒），视觉流畅且不卡顿
      */
-    private void initSystemTimeTimer() {
-        if (systemTimeTimer != null) {
-            systemTimeTimer.cancel();
+    private static final long SYSTEM_TIME_UPDATE_INTERVAL = 100;
+    private final Runnable updateSystemTimeRunnable = new Runnable() {
+        @Override
+        public void run() {
+            updateSystemTime(); // 复用原有方法，无需改动
+            handler.postDelayed(this, SYSTEM_TIME_UPDATE_INTERVAL);
         }
-        systemTimeTimer = new Timer();
-        systemTimeTimer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                handler.post(MainActivity.this::updateSystemTime);
-            }
-        }, 0, 10);
-    }
+    };
 
     /**
      * 开始计时
@@ -330,6 +326,8 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
      * 功能：设置计时器为运行状态，计算计时基准时间，记录本次开始计时的实际时间（用于"开始时间"字段），启动计时器更新任务
      */
     private void startTimer() {
+        // 【2025-11-20 16:12】新增：记录计时开始
+        LogUtils.log("Timer started. startTimeForLap=" + new java.util.Date(startTimeForLap));
         isRunning = true;
         startTimeMillis = System.currentTimeMillis() - elapsedMillis;
         // 关键修改：将开始时间改为点击开始按钮时的当前系统时间，不再减去已累计时间
@@ -361,6 +359,8 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
      * 功能：当计时器运行时，暂停计时并计算本次分段时间、累计分段时间，显示输入对话框获取分段信息
      */
     private void recordLap() {
+        // 【2025-11-20 16:13】新增：记录分段操作触发
+        LogUtils.log("Lap recorded. currentElapsed=" + elapsedMillis + "ms");
         if (!isRunning) {
             Toast.makeText(this, R.string.toast_start_first, Toast.LENGTH_SHORT).show();
             return;
@@ -539,6 +539,12 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
             return;
         }
         boolean success = ExcelExportUtil.exportLapRecordsToExcel(this, uri, lapRecords);
+        // 【2025-11-20 16:15】新增：记录数据导出结果
+        if (success) {
+            LogUtils.log("Data exported successfully to: " + uri.toString());
+        } else {
+            LogUtils.log("Data export failed.");
+        }
         if (!success) {
             Log.e(TAG, "Export failed");
         }
@@ -601,19 +607,33 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         saveState();
     }
 
+    // 【2025-11-20 14:09】新增：Activity 进入前台时启动系统时间显示更新
+    @Override
+    protected void onResume() {
+        super.onResume();
+        handler.post(updateSystemTimeRunnable);
+    }
+
+    // 【2025-11-20 14:09】新增：Activity 进入后台时停止系统时间更新，节省资源
+    @Override
+    protected void onPause() {
+        super.onPause();
+        handler.removeCallbacks(updateSystemTimeRunnable);
+    }
     /**
      * 活动销毁时的回调
      * 时间：初始创建（含新增停止服务代码）
      * 功能：取消系统时间计时器，移除Handler的所有回调，停止保活服务
      */
+    // 【2025-11-20 14:10】重构：统一清理所有 Handler 回调，并停止保活服务
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (systemTimeTimer != null) {
-            systemTimeTimer.cancel();
-        }
-        handler.removeCallbacksAndMessages(null);
-        // 停止保活服务（新增代码）
+        // 【2025-11-20 14:10】移除：不再需要 systemTimeTimer.cancel()
+        handler.removeCallbacksAndMessages(null); // 包含 updateTimerRunnable 和 updateSystemTimeRunnable
+        // 停止保活服务（保留原有功能）
         DaemonManager.stopDaemonService(this);
+        // 【2025-11-20 16:17】新增：记录应用销毁
+        LogUtils.log("Application destroyed.");
     }
 }
