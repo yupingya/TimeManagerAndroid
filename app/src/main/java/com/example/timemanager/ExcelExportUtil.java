@@ -51,7 +51,9 @@ public class ExcelExportUtil {
             }
             return false;
         } catch (Exception e) {
-            Log.e(TAG, "Unexpected error: ", e);
+            // 【2025-11-20 18:04】修改：英文错误日志转中文，并同步到 LogUtils 文件日志
+            Log.e(TAG, "发生未预期的错误", e); // 保留 Log.e
+            LogUtils.log("系统发生“未预期错误”事件：" + e.getMessage());
             if (failMsg != 0) {
                 String errorMsg = context.getString(failMsg) + e.getMessage();
                 Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show();

@@ -114,8 +114,8 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         loadModeState();
 
         super.onCreate(savedInstanceState);
-        // 【2025-11-20 16:10】新增：记录应用启动日志
-        LogUtils.log("Application started. isNight=" + isNight + ", isRunning=" + isRunning + ", Records=" + (lapRecords != null ? lapRecords.size() : 0));
+        // 【2025-11-20 18:15】修改：英文日志转中文，明确记录“应用启动”功能
+        LogUtils.log("用户启动应用程序：当前为" + (isNight ? "黑夜" : "白天") + "模式，计时器状态为" + (isRunning ? "运行中" : "已暂停") + "，已有分段记录 " + (lapRecords != null ? lapRecords.size() : 0) + " 条");
         setContentView(R.layout.activity_main);
 
         // 启动保活服务
@@ -328,8 +328,8 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
      * 功能：设置计时器为运行状态，计算计时基准时间，记录本次开始计时的实际时间（用于"开始时间"字段），启动计时器更新任务
      */
     private void startTimer() {
-        // 【2025-11-20 16:12】新增：记录计时开始
-        LogUtils.log("Timer started. startTimeForLap=" + new java.util.Date(startTimeForLap));
+        // 【2025-11-20 18:12】修改：英文日志转中文，记录计时器启动
+        LogUtils.log("用户执行了“开始计时”功能：分段起始时间为 " + new java.util.Date(startTimeForLap));
         isRunning = true;
         startTimeMillis = System.currentTimeMillis() - elapsedMillis;
         // 关键修改：将开始时间改为点击开始按钮时的当前系统时间，不再减去已累计时间
@@ -363,8 +363,8 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
      * 功能：当计时器运行时，暂停计时并计算本次分段时间、累计分段时间，显示输入对话框获取分段信息
      */
     private void recordLap() {
-        // 【2025-11-20 16:13】新增：记录分段操作触发
-        LogUtils.log("Lap recorded. currentElapsed=" + elapsedMillis + "ms");
+        // 【2025-11-20 18:10】修改：英文日志转中文，记录分段操作
+        LogUtils.log("用户执行了“记录分段”功能：当前已计时 " + elapsedMillis + " 毫秒");
         if (!isRunning) {
             Toast.makeText(this, R.string.toast_start_first, Toast.LENGTH_SHORT).show();
             return;
@@ -473,7 +473,10 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         editor.putString("lapRecords", json);
 
         editor.apply();
-        Log.d(TAG, "State saved. isRunning: " + isRunning + ", Records: " + lapRecords.size());
+        // 【2025-11-20 18:00】修改：英文日志转中文，并同步到 LogUtils 文件日志
+        String saveMsg = "状态已保存。运行中：" + isRunning + "，记录数：" + lapRecords.size();
+        Log.d(TAG, saveMsg);
+        LogUtils.log("系统执行了“保存状态”操作：" + saveMsg);
     }
 
     /**
@@ -509,7 +512,10 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
             lapRecords = new ArrayList<>();
         }
 
-        Log.d(TAG, "State loaded. isRunning: " + isRunning + ", Records: " + lapRecords.size());
+        // 【2025-11-20 18:01】修改：英文日志转中文，并同步到 LogUtils 文件日志
+        String loadMsg = "状态已加载。运行中：" + isRunning + "，记录数：" + lapRecords.size();
+        Log.d(TAG, loadMsg);
+        LogUtils.log("系统执行了“加载状态”操作：" + loadMsg);
     }
 
     /**
@@ -521,6 +527,7 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         // 【2025-11-20 17:05】新增：记录导出操作触发
         LogUtils.log("用户执行了“导出 Excel”功能");
         if (lapRecords.isEmpty()) {
+            LogUtils.log("没有可导出的记录。");
             Toast.makeText(this, R.string.toast_no_records, Toast.LENGTH_SHORT).show();
             return;
         }
@@ -529,9 +536,12 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         String filename = "TimeManager_" + sdf.format(new Date()) + ".xls";
 
         try {
+            LogUtils.log("用户“导出 Excel”功能导出了：" + filename);
             fileSaverLauncher.launch(filename);
         } catch (Exception e) {
-            Log.e(TAG, "File Saver Launcher failed", e);
+            // 【2025-11-20 18:02】修改：英文错误日志转中文，并同步到 LogUtils 文件日志
+            Log.e(TAG, "文件保存器启动失败", e); // 保留 Log.e 错误级别
+            LogUtils.log("系统发生“文件保存器启动失败”事件：" + e.getMessage());
             Toast.makeText(this, R.string.toast_file_saver_fail, Toast.LENGTH_SHORT).show();
         }
     }
