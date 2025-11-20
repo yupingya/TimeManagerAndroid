@@ -182,6 +182,8 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
      * 功能：切换isNight状态，保存模式状态到SharedPreferences，并应用对应模式的主题
      */
     private void toggleMode() {
+        // 【2025-11-20 17:00】新增：记录日夜模式切换
+        LogUtils.log("用户执行了“切换日夜模式”功能：当前模式为" + (isNight ? "白天" : "黑夜"));
         isNight = !isNight;
 
         SharedPreferences.Editor editor = sharedPreferences.edit();
@@ -342,6 +344,8 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
      * 功能：如果正在运行则暂停计时（保存当前累计时间），如果已暂停则调用startTimer继续计时，最后保存状态
      */
     private void toggleStartPause() {
+        // 【2025-11-20 17:02】新增：记录开始/暂停操作
+        LogUtils.log("用户执行了“" + (isRunning ? "暂停" : "开始") + "计时”功能");
         if (isRunning) {
             isRunning = false;
             pauseOffsetMillis = elapsedMillis;
@@ -400,6 +404,8 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
      * 功能：停止计时器（如果正在运行），重置所有计时相关变量（包括分段相关变量），清空分段记录并更新UI
      */
     private void resetTimer() {
+        // 【2025-11-20 17:03】新增：记录重置计时器
+        LogUtils.log("用户执行了“重置计时器”功能");
         if (isRunning) {
             toggleStartPause();
         }
@@ -512,6 +518,8 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
      * 功能：当存在分段记录时，启动文件保存活动，导出数据为Excel文件
      */
     private void exportData() {
+        // 【2025-11-20 17:05】新增：记录导出操作触发
+        LogUtils.log("用户执行了“导出 Excel”功能");
         if (lapRecords.isEmpty()) {
             Toast.makeText(this, R.string.toast_no_records, Toast.LENGTH_SHORT).show();
             return;
@@ -541,12 +549,14 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         boolean success = ExcelExportUtil.exportLapRecordsToExcel(this, uri, lapRecords);
         // 【2025-11-20 16:15】新增：记录数据导出结果
         if (success) {
-            LogUtils.log("Data exported successfully to: " + uri.toString());
+            LogUtils.log("数据已成功导出: " + uri.toString());
         } else {
-            LogUtils.log("Data export failed.");
+            LogUtils.log("数据导出失败。");
         }
         if (!success) {
-            Log.e(TAG, "Export failed");
+            // 【2025-11-20 17:10】修改：保留 Log.e 错误级别，并增加中文日志到文件
+            Log.e(TAG, "数据导出失败"); // Logcat 仍为 Error 级别
+            LogUtils.log("系统发生“导出失败”事件：Excel 文件写入异常");
         }
     }
 
@@ -562,6 +572,8 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
     public void onFinishInputDialog(String category, String detail) {
         // 获取recordLap中传递的临时数据
         Bundle bundle = getSupportFragmentManager().findFragmentByTag("InputDialogFragment").getArguments();
+        // 【2025-11-20 17:07】新增：记录分段信息确认
+        LogUtils.log("用户执行了“确认分段记录”功能：分类=" + category + ", 事件=" + detail);
         if (bundle == null) return;
 
         String dateStr = bundle.getString("dateStr");

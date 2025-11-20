@@ -42,7 +42,9 @@ public class ExcelExportUtil {
             return true;
 
         } catch (IOException e) {
-            Log.e(TAG, "Error writing Excel file: ", e);
+            // 【2025-11-20 17:12】修改：保留 Log.e 错误级别，并增加中文日志到文件
+            Log.e(TAG, "写入 Excel 文件时发生错误", e); // Logcat 保持 Error
+            LogUtils.log("系统发生“Excel 写入异常”事件：" + e.getMessage());
             if (failMsg != 0) {
                 String errorMsg = context.getString(failMsg) + e.getMessage();
                 Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show();
