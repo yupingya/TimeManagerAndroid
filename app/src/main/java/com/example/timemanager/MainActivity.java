@@ -114,6 +114,16 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         loadModeState();
 
         super.onCreate(savedInstanceState);
+
+        // 【2025-11-22 01:05】新增：检测是否因系统强杀导致异常重启
+        boolean wasCleanExit = sharedPreferences.getBoolean("wasCleanExit", false);
+        if (!wasCleanExit) {
+            // 上次不是正常退出 → 很可能被系统强杀
+            LogUtils.log("⚠️ 警告：检测到应用上次未正常退出，可能因内存不足被系统强制终止");
+        }
+        // 标记本次为“尚未正常退出”
+        sharedPreferences.edit().putBoolean("wasCleanExit", false).apply();
+
         // 【2025-11-20 18:15】修改：英文日志转中文，明确记录“应用启动”功能
         LogUtils.log("用户启动应用程序：当前为" + (isNight ? "黑夜" : "白天") + "模式，计时器状态为" + (isRunning ? "运行中" : "已暂停") + "，已有分段记录 " + (lapRecords != null ? lapRecords.size() : 0) + " 条");
         setContentView(R.layout.activity_main);
@@ -655,7 +665,11 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         handler.removeCallbacksAndMessages(null); // 包含 updateTimerRunnable 和 updateSystemTimeRunnable
         // 停止保活服务（保留原有功能）
         DaemonManager.stopDaemonService(this);
-        // 【2025-11-20 16:17】新增：记录应用销毁
-        LogUtils.log("Application destroyed.");
+
+        // 【2025-11-22 01:02】新增：记录应用正常退出（用于与强杀区分）
+        LogUtils.log("应用程序正常退出（非系统强杀）");
+
+        // 【2025-11-22 01:07】新增：标记本次为干净退出
+        sharedPreferences.edit().putBoolean("wasCleanExit", true).apply();
     }
 }

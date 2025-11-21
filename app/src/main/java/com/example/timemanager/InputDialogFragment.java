@@ -1,14 +1,18 @@
 package com.example.timemanager;
 
 import android.app.Dialog;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
+import android.content.DialogInterface;
+import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
 import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -49,7 +53,7 @@ public class InputDialogFragment extends DialogFragment {
     private InputDialogListener listener;
     private Spinner spnCategory; // 修改时间：20251117 22:35 - 将EditText改为Spinner
     private EditText edtDetail;
-    private Button btnOK;
+    private Button btnOK; // 承担功能：引用对话框中的“确定”按钮，供外部调用点击事件
     private Button btnCancel;
 
     private String selectedCategory = ""; // 修改时间：20251117 22:35 - 存储选中的分类
@@ -131,7 +135,20 @@ public class InputDialogFragment extends DialogFragment {
             });
         }
         if (btnCancel != null) {
-            btnCancel.setOnClickListener(v -> dismiss());
+            // 【2025-11-22 04:40】修改：点击“取消”按钮时不再直接关闭，而是弹出二次确认弹窗
+            // 功能作用：防止用户误点“取消”导致输入内容丢失，统一通过“确认操作”弹窗处理放弃逻辑
+            // 修改时间：2025年11月22日 04:40
+            btnCancel.setOnClickListener(v -> {
+                try {
+                    showDiscardConfirmation();
+                } catch (Exception e) {
+                    // 【2025-11-22 04:45】新增：记录“取消”按钮触发确认弹窗失败的日志
+                    LogUtils.log("【InputDialogFragment.btnCancel】点击取消按钮时弹出确认框失败：" + e.getMessage());
+                    Log.e("InputDialogFragment", "点击‘取消’按钮时弹出确认对话框失败", e);
+                    // 安全兜底：若弹窗失败，仍允许关闭（避免卡死）
+                    dismiss();
+                }
+            });
         }
 
         dialog.setContentView(view);
@@ -139,6 +156,11 @@ public class InputDialogFragment extends DialogFragment {
             dialog.getWindow().setBackgroundDrawable(new ColorDrawable(android.graphics.Color.TRANSPARENT));
             // 注意：窗口大小我们在 onStart() 里设置（因为视图创建后才能安全设置宽度）
         }
+
+        // 【2025-11-22 03:00】修改：禁止对话框因点击外部或返回键自动关闭，
+        // 改为由自定义逻辑处理，确保“继续编辑”能回到原对话框。
+        dialog.setCancelable(false);
+        dialog.setCanceledOnTouchOutside(false);
 
         return dialog;
     }
@@ -152,6 +174,45 @@ public class InputDialogFragment extends DialogFragment {
         Dialog dialog = getDialog();
         if (dialog != null && dialog.getWindow() != null) {
             setDialogWidthCompatible(dialog);
+
+            // 【2025-11-22 04:00】修复：增加空值检查并添加错误日志，防止因 getWindow() 返回 null 导致闪退
+            try {
+                // 监听返回键
+                dialog.setOnKeyListener((d, keyCode, event) -> {
+                    if (keyCode == android.view.KeyEvent.KEYCODE_BACK && event.getAction() == android.view.KeyEvent.ACTION_UP) {
+                        showDiscardConfirmation();
+                        return true;
+                    }
+                    return false;
+                });
+
+                // 监听点击外部区域 —— 关键：确保 getWindow() 不为 null
+                android.view.Window window = dialog.getWindow();
+                if (window != null) {
+                    View contentView = window.getDecorView();
+                    if (contentView != null) {
+                        contentView.setOnTouchListener((v, event) -> {
+                            if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                                Rect dialogBounds = new Rect();
+                                window.getDecorView().getHitRect(dialogBounds);
+                                if (!dialogBounds.contains((int) event.getX(), (int) event.getY())) {
+                                    showDiscardConfirmation();
+                                    return true;
+                                }
+                            }
+                            return false;
+                        });
+                    } else {
+                        LogUtils.log("【InputDialogFragment.onStart】警告：contentView 为 null，跳过触摸监听");
+                    }
+                } else {
+                    LogUtils.log("【InputDialogFragment.onStart】警告：dialog.getWindow() 返回 null，跳过事件监听");
+                }
+            } catch (Exception e) {
+                // 【2025-11-22 04:05】新增：记录 onStart 中事件监听器初始化失败的异常
+                LogUtils.log("【InputDialogFragment.onStart】发生异常：设置返回键/外部点击监听失败 - " + e.getMessage());
+                Log.e("InputDialogFragment", "onStart listener setup failed", e); // 保留 Logcat 错误
+            }
         }
 
         // 2) 对视图应用主题颜色（白天/黑夜）
@@ -162,6 +223,8 @@ public class InputDialogFragment extends DialogFragment {
         if (root != null) {
             applyThemeColorsToDialog(root);
         }
+
+
     }
 
     /**
@@ -199,6 +262,87 @@ public class InputDialogFragment extends DialogFragment {
     public void onDetach() {
         super.onDetach();
         listener = null;
+    }
+
+    // 【2025-11-22 03:05】新增功能：自定义对话框关闭拦截器
+// 功能作用：当用户点击返回键、弹窗外区域或“取消”按钮时，弹出二次确认提示，
+// 并确保原输入对话框保持打开状态，直到用户明确选择“取消”。
+// 新增时间：2025年11月22日 03:05
+    private void showDiscardConfirmation() {
+        try {
+            boolean isNight = isNightMode();
+            int bgColor = ColorUtils.getThemeColor(requireContext(), "colorSurface", isNight);
+            int textColor = ColorUtils.getThemeColor(requireContext(), "colorOnSurface", isNight);
+            int buttonBgColor = ColorUtils.getThemeColor(requireContext(), "colorPrimary", isNight);
+            int buttonTextColor = ColorUtils.getThemeColor(requireContext(), "colorOnPrimary", isNight);
+
+            // 【2025-11-22 05:10】增强：为兼容 HyperOS/MIUI，使用自定义标题 TextView 替代系统标题
+            // 功能作用：彻底解决 ROM 强制覆盖标题颜色和对齐方式的问题
+            // 新增时间：2025年11月22日 05:10
+            TextView customTitle = new TextView(requireContext());
+            customTitle.setText("确认操作");
+            customTitle.setTextColor(textColor);
+            customTitle.setTextSize(20); // 与系统标题大小一致
+            customTitle.setGravity(android.view.Gravity.CENTER);
+            customTitle.setPadding(
+                    (int) dpToPx(24),
+                    (int) dpToPx(16),
+                    (int) dpToPx(24),
+                    (int) dpToPx(8)
+            );
+
+            AlertDialog confirmDialog = new AlertDialog.Builder(requireContext())
+                    .setCustomTitle(customTitle) // ← 关键：使用自定义标题
+                    .setMessage("您尚未保存分段记录。\n\n• 点击“保存”将记录当前输入\n• 点击“取消”将丢弃内容\n• 点击“继续编辑”可返回修改")
+                    .setPositiveButton("保存", (d, which) -> {
+                        if (btnOK != null) btnOK.performClick();
+                    })
+                    .setNegativeButton("取消", (d, which) -> {
+                        dismiss(); // 用户明确放弃
+                    })
+                    .setNeutralButton("继续编辑", (d, which) -> {
+                        // 保持原对话框打开
+                    })
+                    .create();
+
+            // 设置背景色
+            if (confirmDialog.getWindow() != null) {
+                confirmDialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(bgColor));
+            }
+
+            confirmDialog.setOnShowListener(d -> {
+                try {
+                    // 消息文本颜色
+                    TextView messageView = confirmDialog.findViewById(android.R.id.message);
+                    if (messageView != null) {
+                        messageView.setTextColor(textColor);
+                        messageView.invalidate();
+                    }
+
+                    // 按钮颜色
+                    Button positive = confirmDialog.getButton(AlertDialog.BUTTON_POSITIVE);
+                    Button negative = confirmDialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+                    Button neutral = confirmDialog.getButton(AlertDialog.BUTTON_NEUTRAL);
+                    for (Button btn : new Button[]{positive, negative, neutral}) {
+                        if (btn != null) {
+                            btn.setBackgroundColor(buttonBgColor);
+                            btn.setTextColor(buttonTextColor);
+                            btn.invalidate();
+                        }
+                    }
+                } catch (Exception innerE) {
+                    LogUtils.log("【InputDialogFragment.showDiscardConfirmation】设置弹窗样式时发生异常：" + innerE.getMessage());
+                    Log.e("InputDialogFragment", "设置‘确认操作’对话框样式失败", innerE);
+                }
+            });
+
+            confirmDialog.show();
+        } catch (Exception e) {
+            LogUtils.log("【InputDialogFragment.showDiscardConfirmation】弹出二次确认框失败：" + e.getMessage());
+            Log.e("InputDialogFragment", "弹出‘确认操作’对话框失败", e);
+            // 安全兜底
+            dismiss();
+        }
     }
 
     // ----------------------
@@ -423,5 +567,12 @@ public class InputDialogFragment extends DialogFragment {
         int green = Color.green(color);
         int blue = Color.blue(color);
         return Color.argb(alpha, red, green, blue);
+    }
+
+    // 【2025-11-22 05:15】新增：DP 转 PX 工具方法，用于自定义标题内边距
+// 功能作用：确保自定义标题在不同屏幕密度下显示一致
+// 新增时间：2025年11月22日 05:15
+    private float dpToPx(float dp) {
+        return dp * getResources().getDisplayMetrics().density;
     }
 }
