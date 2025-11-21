@@ -25,6 +25,9 @@ public class DaemonService extends Service {
         super.onCreate();
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, createNotification());
+
+        // 【2025-11-22 01:00】新增：记录保活服务启动（间接表示应用进入后台）
+        LogUtils.log("保活服务已启动，应用可能进入后台运行");
     }
 
     private void createNotificationChannel() {
