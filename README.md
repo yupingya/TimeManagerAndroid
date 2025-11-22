@@ -1,99 +1,73 @@
-# Time Manager Android
+一款轻量高效的个人时间管理工具，专注于精确计时、分段记录与数据导出，帮助用户追踪和管理时间分配。
 
-**专注、精确的分段计时工具**
+## Software Introduction
 
-## 🌐 软件介绍 (Software Introduction)
+TimeManagerAndroid 是一款面向个人用户的时间管理应用，核心功能包括：
 
-Time Manager 是一款专为精确时间管理和活动分段记录设计的 Android 应用。它不仅提供基础的计时功能，更通过精密的架构设计，确保计时过程的**稳定性和数据的完整性**，尤其适用于需要长时间、不间断记录工作、学习或训练时长的用户。
+- **精确计时**：支持毫秒级计时器，记录累计时间与分段间隔
+- **分段管理**：通过分类（工作 / 休息等）和详细描述记录每段时间用途
+- **数据导出**：支持将记录导出为 Excel 格式，便于后续分析
+- **模式切换**：内置白天 / 黑夜模式，适配不同使用场景
+- **状态留存**：即使应用被后台回收，仍能恢复计时状态，避免数据丢失
 
-本项目关注**核心计时逻辑的稳定、数据模型的纯净以及轻量级的数据导出能力**，是 Android 应用开发中架构设计与工程实践的典范。
+应用设计遵循简洁易用原则，界面直观，操作流畅，适用于需要精确记录时间分配的场景（如工作计时、学习规划、任务管理等）。
 
-### 核心功能
+## Software Architecture
 
-- **高精度计时**：支持小时、分、秒、毫秒（两位厘秒）显示。
-- **持久化运行**：通过后台服务（Foreground Service）机制，确保应用在后台或设备休眠时，计时器依然稳定、准确地运行，解决了 Android 系统 Activity 生命周期带来的计时中断问题。
-- **分段记录与标记**：支持“分段”（Lap）功能，记录当前间隔时间和累计时间，并能为每段记录添加**分类（Spinner 选择）和详细事件描述**。
-- **数据持久化**：使用 `SharedPreferences` + `Gson` 机制，在应用重启、Activity 重建或意外退出时，自动保存和恢复计时状态及所有分段记录。
-- **轻量级数据导出**：支持一键将所有分段记录导出为 **Excel 文件（.xls 格式）**，便于用户进行后续的数据分析。
-- **自定义主题**：支持一键切换日/夜模式，提供舒适的视觉体验。
+### 整体架构
 
-## 🏛️ 软件架构深度剖析 (Software Architecture)
+项目基于 Android 原生开发，采用**MVVM 架构**（最新版本重构后），严格分离 UI 展示与业务逻辑：
 
-本项目的架构思想是 **“稳定为王，高内聚低耦合”**，其精华在于对 Android 生命周期和数据流的精妙控制。
+- **UI 层**：Activity/Fragment 负责界面渲染与用户交互
+- **ViewModel 层**：管理状态数据与业务逻辑（如计时控制、数据处理）
+- **数据层**：通过 SharedPreferences 实现状态持久化，文件系统处理数据导出
 
-### 1. 核心稳定性层 (The Daemon Layer)
+### 核心模块
 
-- **关键组件：** `DaemonService.java`, `DaemonManager.java`
-- **设计思想：** 解决了 Android 计时应用中最大的痛点——后台被杀。
-  - `DaemonManager` 负责调用 `DaemonService`，并在 `MainActivity` 启动时启动，销毁时停止。
-  - `DaemonService` 继承自 `Service`，并运行为 **Foreground Service（前台服务）**，通过创建低优先级的通知（Notification），极大地提高了应用在后台时的系统存活率和优先级，确保计时任务不被系统回收。
-  - 计时逻辑核心依赖于 `Handler` 和 `Runnable` 在主线程驱动 UI 更新，服务确保了主线程的存活。
+1. **计时模块**
+   - 基于`Handler`和`Timer`实现高精度计时逻辑
+   - 处理暂停 / 继续 / 重置等状态切换，确保后台恢复后数据准确
+   - 核心类：`MainActivity`（UI 交互）、`LapRecord`（分段数据模型）
+2. **UI 组件**
+   - 主界面：`activity_main.xml`布局，包含计时器显示、控制按钮与分段列表
+   - 分段对话框：`InputDialogFragment`，用于输入分段分类与详情
+   - 列表展示：`RecyclerView` + `LapAdapter`，高效展示分段记录
+3. **主题与样式**
+   - 日夜模式通过`values/themes.xml`与`values-night/themes.xml`实现
+   - 统一颜色管理：使用`colorSurface`、`colorOnSurface`等主题属性实现样式一致性
+   - 主题切换逻辑：`applyThemeColors()`方法统一更新所有 UI 元素颜色
+4. **数据持久化与导出**
+   - 状态保存：`SharedPreferences`存储计时状态、模式设置等
+   - 日志系统：`LogUtils`记录操作日志，保存至`sdcard/Download/TimeManager`目录
+   - 导出功能：通过`fileSaverLauncher`实现 Excel 格式导出
+5. **兼容性处理**
+   - 支持 Android 7.0+（minSdk=24），适配高版本系统权限与 API 变化
+   - 对话框宽度适配：`setDialogWidthCompatible()`确保在不同屏幕尺寸下显示正常
 
-### 2. 数据与模型层 (Model Layer - High Cohesion)
+## Installation Guide
 
-- **关键组件：** `LapRecord.java`
-- **设计思想：** 贯彻**高内聚原则**，将数据和操作数据的逻辑封装在一起。
-  - **职责集成**：原始的 `LapRecord` 仅为数据容器（DTO），重构后，**将时间格式化工具方法 `formatTime(long millis)` 封装为 `LapRecord` 的静态方法。** 这样，无论是 `MainActivity` 更新主计时，还是 `LapRecord` 自身初始化，都统一调用此方法，消除了代码冗余，使得数据模型更加“自给自足”。
-  - **类型安全**：`LapRecord` 的构造函数直接接收 `long` 类型的毫秒数（原始数据），而不是格式化后的 `String`，确保了数据源头的准确性。
+### 从源码构建
 
-### 3. 用户交互与主题层 (UI/UX Layer)
+1. **克隆仓库**
 
-- **关键组件：** `InputDialogFragment.java`, `CustomSpinnerAdapter.java`, `ColorUtils.java`
-- **设计思想：** 优化用户体验和界面定制性。
-  - `InputDialogFragment` 使用 `DialogFragment` 实现弹出层，通过接口 `InputDialogListener`（MVP/Listener模式的体现）与 `MainActivity` 隔离，职责分离明确。
-  - 采用 **`Spinner` 下拉框** 代替纯文本输入框来选择“种类”，强制了输入规范，提高了数据的结构化程度。
-  - `ColorUtils` 独立处理日夜模式的颜色逻辑，通过手动配置颜色资源 ID 并使用 `Context` 配置，实现了 **不依赖系统主题的、自定义粒度更高的日夜模式切换**。
-
-### 4. 数据导出层 (Export Layer - Lightweight Solution)
-
-- **关键组件：** `ExcelExportUtil.java`
-- **设计思想：** 实用、轻量、无依赖。
-  - `ExcelExportUtil` **没有引入** Apache POI 等大型第三方 Excel 库，而是通过直接生成 Excel XML 格式（兼容旧版 `.xls`）的字符串，并写入文件流。
-  - 这种设计极大地**减小了应用体积**，**避免了复杂的兼容性和依赖冲突**，是一种高效且轻量的解决方案。
-  - 文件保存通过 Android 的 **Storage Access Framework (SAF)** API (`ActivityResultContracts.CreateDocument`) 实现，符合现代 Android 系统的权限和文件管理规范。
-
-## 🛠️ 安装教程 (Installation Guide)
-
-本项目使用标准的 Android Gradle 构建系统。
-
-1. **克隆项目：**
-
-   Bash
-
-   ```
-   git clone https://gitee.com/philipslive/time-manager-android.git
-   cd time-manager-android
+   ```bash
+   git clone https://github.com/yupingya/TimeManagerAndroid.git
+   cd TimeManagerAndroid
    ```
 
-2. **导入 Android Studio：** 打开 Android Studio，选择 `File` -> `Open`，导航至克隆的目录并打开。
+2. **环境要求**
 
-3. **同步依赖：** 等待 Gradle 同步完成。项目主要依赖于 `AppCompat`、`Material`、`ConstraintLayout` 和 `Gson`。
+   - Android Studio Giraffe 或更高版本
+   - JDK 11
+   - Android SDK 36（targetSdk）与 SDK 24（minSdk）
 
-4. **运行：** 连接 Android 设备或启动模拟器，点击 `Run` 按钮即可部署运行。
+3. **构建步骤**
 
-> **环境要求：**
->
-> - `compileSdk`：36 (或更高)
-> - `minSdk`：24 (Android 7.0 Nougat)
+   - 打开 Android Studio，导入项目
+   - 等待 Gradle 同步完成（依赖将自动下载，包括 Gson、Material 组件等）
+   - 连接 Android 设备或启动模拟器，点击 "Run" 按钮构建并安装
 
-## 📖 使用说明 (Usage Instructions)
-
-1. **开始/暂停计时：**
-   - 点击 **“开始/暂停”** 按钮启动或暂停计时器。
-   - 应用在后台运行时，计时器仍将继续准确运行。
-2. **分段记录：**
-   - 在计时运行过程中，点击 **“分段”** 按钮。
-   - 计时器将自动暂停，并弹出输入对话框。
-   - 在对话框中选择 **“种类”** 并填写 **“事件描述”**，点击 **“确认”** 完成分段记录。
-   - 分段记录将显示在下方列表中，包括本次**间隔时间**和**累计时间**。
-3. **重置：**
-   - 点击 **“重置”** 按钮，清空计时器和所有分段记录。
-4. **主题切换：**
-   - 点击 **“模式”** 按钮，快速切换应用的主题颜色为**日间模式**或**夜间模式**。
-5. **导出数据：**
-   - 点击 **“导出”** 按钮，系统会弹出文件保存界面。选择保存路径后，即可将所有记录导出为命名格式为 `TimeManager_yyyyMMdd_HHmmss.xls` 的 Excel 文件。
-
-## 🤝 参与贡献 (Contribution)
+## 参与贡献
 
 欢迎任何形式的贡献，包括 Bug 报告、功能建议、代码优化等。
 
@@ -101,6 +75,71 @@ Time Manager 是一款专为精确时间管理和活动分段记录设计的 And
 
 **联系邮箱：** [jingyeyousi_yuping@163.com](mailto:jingyeyousi_yuping@163.com)
 
-------
+贡献需遵循项目代码规范，确保新增功能兼容现有逻辑，且包含必要的测试。
 
-**感谢您对本项目的关注与支持！**
+## 开源协议
+
+本项目采用**GPL-3.0 License**开源协议，详情参见 LICENSE 文件。
+
+## 版本更新历史
+
+### TimeManager V1.5.1（2025-11-22）
+
+- 重构 MainActivity，严格遵循 MVVM 架构：ViewModel 管理状态，Activity 负责 UI 与计时器生命周期
+- 修复日夜模式切换后计时器线程未恢复、按钮状态不同步问题
+- 修复分段弹窗主题错乱（白天显示黑夜样式）：通过 MainActivity 提供 isNightMode () 实现主题同步
+- 修正 InputDialogFragment 中 Fragment 类型错误（android.app.Fragment → androidx.fragment.app.Fragment）
+- 统一 applyThemeColors (isNight) 应用逻辑，确保所有控件颜色正确更新
+- 所有修改严格保留原有 XML ID 和功能行为，无破坏性变更
+- 新增中文系统日志与工具日志，便于调试追踪
+
+### TimeManager V1.3.3（2025-11-21 后）
+
+- 将保存的日志都改为中文日志
+
+### TimeManager V1.3.2（2025-11-21）
+
+- 修复黑夜模式下确认弹窗标题颜色与居中问题：
+  - 使用自定义 TextView 替代系统标题，解决部分 ROM 强制覆盖样式问题
+  - 确保 "确认操作" 文字在黑夜模式下显示为白色（colorOnSurface），白天为黑色
+  - 标题文字严格居中显示
+- 统一取消按钮、返回键、点击外部区域均触发二次确认弹窗
+- 增强异常日志记录（中文 Log.e + LogUtils）
+- 新增 dpToPx 工具方法支持自定义内边距
+
+### TimeManager V1.3.1（2025-11-XX）
+
+- 修复软件被内存杀死导致的卡顿问题
+- 添加日志功能，日志文件保存在手机的`sdcard/Download/TimeManager`目录
+
+### TimeManager V1.2.4（2025-11-XX）
+
+- 更新类别列表
+
+### TimeManager V1.2.3（2025-11-XX）
+
+- 修复开始时间列的记录时间
+- 更新 push 文件
+
+### TimeManager V1.2.2（2025-11-XX）
+
+- 优化后台内存回收处理，确保回收后仍能继续计时
+- 修复操作失误导致的问题
+
+### TimeManager V1.2（2025-11-XX）
+
+- 增加程序后台留存的逻辑代码
+- 将界面组件向下挪动 60dp，优化布局
+
+### TimeManager V1.1（2025-11-XX）
+
+- 初步实现程序后台留存逻辑
+- 调整界面组件位置
+
+### TimeManager V1.0（2025-XX-XX）
+
+- 初始版本发布，包含基础计时、分段记录、导出功能
+
+### Initial commit
+
+- 项目初始化
