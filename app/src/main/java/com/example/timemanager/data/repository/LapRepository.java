@@ -14,6 +14,7 @@ import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class LapRepository {
     private static final String PREF_NAME = "TimeManagerPrefs";
@@ -44,6 +45,23 @@ public class LapRepository {
         } catch (Exception e) {
             LogUtils.log("【LapRepository.saveLapRecords】保存失败：" + e.getMessage());
             android.util.Log.e("LapRepository", "保存分段记录异常", e);
+        }
+    }
+
+    // 【2025-11-22 18:40】新增：直接保存指定记录列表
+    // 功能作用：用于数据导入功能，将导入的数据列表作为新的系统保存数据
+    // 新增时间：2025年11月22日 18:40
+    public void saveAllLapRecords(@NonNull List<LapRecord> records) {
+        try {
+            String json = gson.toJson(records);
+            context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+                    .edit()
+                    .putString(KEY_LAP_RECORDS, json)
+                    .apply();
+            LogUtils.log(String.format(Locale.getDefault(), "【LapRepository】已保存所有分段记录，数量：%d", records.size()));
+        } catch (Exception e) {
+            LogUtils.log("【LapRepository.saveAllLapRecords】保存失败：" + e.getMessage());
+            android.util.Log.e("LapRepository", "保存所有分段记录异常", e);
         }
     }
 

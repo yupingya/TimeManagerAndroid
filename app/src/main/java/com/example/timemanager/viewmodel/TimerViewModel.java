@@ -14,6 +14,11 @@ import com.example.timemanager.data.repository.LapRepository;
 import com.example.timemanager.util.LogUtils;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+
+import androidx.annotation.NonNull; // 确保有这个导入，以支持 @NonNull
+import com.example.timemanager.data.model.LapRecord;
+import com.example.timemanager.util.LogUtils;
 
 public class TimerViewModel extends AndroidViewModel {
     private final LapRepository lapRepository;
@@ -212,6 +217,38 @@ public class TimerViewModel extends AndroidViewModel {
         totalLapAccumulatedMillis = prefs.getLong("totalLapAccumulatedMillis", 0);
         isNightMode.setValue(prefs.getBoolean("isNight", false));
         lapRecords.setValue(lapRepository.loadLapRecords());
+    }
+
+    // 【2025-11-22 18:45】新增：导入分段记录数据
+    // 功能作用：将导入的数据设置为系统当前数据，并重置计时器状态到最大累计时间。
+    // 新增时间：2025年11月22日 18:45
+    public void importRecords(@NonNull List<LapRecord> importedRecords, long maxElapsedMillis) {
+        // 1. 停止并重置当前计时状态
+        if (Boolean.TRUE.equals(isRunning.getValue())) {
+            // 确保计时器是停止状态
+            isRunning.setValue(false);
+            LogUtils.log("【TimerViewModel】导入数据时：停止当前计时器运行状态。");
+        }
+
+        // 2. 更新内部状态：将计时时间设为最大累计时间
+        pauseOffsetMillis = maxElapsedMillis;
+        startTimeMillis = 0; // 重置开始时间
+        lapIndex = importedRecords.size(); // 序号从下一条开始
+
+        // maxElapsedMillis 就是导入数据的累计总时间
+        totalLapAccumulatedMillis = maxElapsedMillis;
+        lastLapEndElapsedMillis = maxElapsedMillis; // 下一次分段的起点是这个累计时间
+
+        // 3. 更新 LiveData 和持久化
+        lapRecords.setValue(importedRecords);
+        elapsedMillis.setValue(maxElapsedMillis); // 更新 UI 上的计时器显示
+
+        // 4. 将导入的数据保存到 SharedPreferences (相当于重置按钮的操作)
+        lapRepository.saveAllLapRecords(importedRecords);
+        saveState(); // 保存 TimerViewModel 内部状态
+
+        LogUtils.log(String.format(Locale.getDefault(), "【TimerViewModel】数据导入完成。计时器已重置为累计时间：%s", LapRecord.formatTime(maxElapsedMillis)));
+        android.util.Log.i("TimerViewModel", "Import finished. Timer reset to: " + LapRecord.formatTime(maxElapsedMillis));
     }
 
     // 【2025-11-22 06:21】新增：更新已过时间（供 Handler 调用）

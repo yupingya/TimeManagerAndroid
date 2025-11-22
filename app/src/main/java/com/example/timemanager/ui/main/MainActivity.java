@@ -33,6 +33,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Locale;
+import android.content.Intent; // 确保有 Intent 导入
+import com.example.timemanager.util.ExcelImportUtil; // 【2025-11-22 18:50】新增：导入工具类
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements InputDialogFragment.InputDialogListener {
 
@@ -79,6 +83,14 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         return isNight;
     }
 
+    // 【2025-11-22 18:50】新增：导入文件结果启动器
+    // 功能作用：用于触发系统文件选择器，选择要导入的 XLSX/CSV 文件
+    // 新增时间：2025年11月22日 18:50
+    private final ActivityResultLauncher<String[]> importFileLauncher = registerForActivityResult(
+            new ActivityResultContracts.OpenDocument(),
+            this::handleImportFileUri
+    );
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -119,6 +131,15 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         btnReset.setOnClickListener(v -> viewModel.resetTimer());
         btnExport.setOnClickListener(v -> exportData());
         btnMode.setOnClickListener(v -> toggleMode());
+
+        btnReset.setOnLongClickListener(v -> {
+            LogUtils.log("用户长按“重置”按钮，触发数据导入流程。");
+            android.util.Log.d("MainActivity", "Long click on Reset, initiating import.");
+            Toast.makeText(this, R.string.toast_import_start, Toast.LENGTH_SHORT).show();
+            // 启动文件选择器，使用通用的 "*/*" MimeType 兼容 XLSX/CSV 文件
+            importFileLauncher.launch(new String[]{"*/*"});
+            return true; // 消费事件，不触发短按
+        });
 
         // 【2025-11-22 15:11】从 ViewModel 加载初始状态
         Boolean initialNight = viewModel.getIsNightMode().getValue();
@@ -324,6 +345,50 @@ public class MainActivity extends AppCompatActivity implements InputDialogFragme
         } else {
             LogUtils.log("系统发生“导出失败”事件：Excel 文件写入异常");
             Toast.makeText(this, R.string.toast_export_fail, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // 【2025-11-22 18:55】新增：处理文件选择器返回的 URI
+    // 功能作用：将选中的文件交给 ExcelImportUtil 解析，并更新 ViewModel
+    // 新增时间：2025年11月22日 18:55
+    private void handleImportFileUri(Uri uri) {
+        if (uri == null) {
+            Toast.makeText(this, R.string.toast_import_cancel, Toast.LENGTH_SHORT).show();
+            LogUtils.log("【MainActivity】文件选择已取消。");
+            return;
+        }
+
+        try {
+            // 授予临时读权限，确保在不同 Android 版本下都能读取文件
+            final int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION;
+            getContentResolver().takePersistableUriPermission(uri, takeFlags);
+
+            LogUtils.log("【MainActivity】已选择导入文件 URI：" + uri.toString());
+            Toast.makeText(this, R.string.toast_import_start, Toast.LENGTH_SHORT).show();
+
+            List<LapRecord> importedRecords = new ArrayList<>();
+            // 调用导入工具进行解析
+            long maxElapsedMillis = ExcelImportUtil.importLapRecordsFromUri(this, uri, importedRecords);
+
+            if (!importedRecords.isEmpty() && maxElapsedMillis > 0) {
+                // 导入成功，更新 ViewModel
+                viewModel.importRecords(importedRecords, maxElapsedMillis);
+                Toast.makeText(this, R.string.toast_import_success, Toast.LENGTH_LONG).show();
+                LogUtils.log("【MainActivity】数据导入流程成功，共导入 " + importedRecords.size() + " 条记录。");
+            } else {
+                // 导入失败或文件为空/无效
+                // 具体的失败信息已在 ExcelImportUtil 中通过 Toast 提示
+                LogUtils.log("【MainActivity】数据导入流程失败或文件内容无效。");
+            }
+
+        } catch (SecurityException e) {
+            Toast.makeText(this, "文件权限不足，无法导入", Toast.LENGTH_LONG).show();
+            LogUtils.log("【MainActivity】系统发生“文件权限不足”错误：" + e.getMessage());
+            android.util.Log.e("MainActivity", "Permission denied for URI: " + uri, e);
+        } catch (Exception e) {
+            Toast.makeText(this, R.string.toast_import_fail, Toast.LENGTH_LONG).show();
+            LogUtils.log("【MainActivity】导入数据发生未知异常：" + e.getMessage());
+            android.util.Log.e("MainActivity", "Import error: ", e);
         }
     }
 

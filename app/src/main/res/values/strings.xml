@@ -33,12 +33,23 @@
     <!-- 列表与导出 -->
     <string name="export_header">序号,日期,间隔,间隔累计,开始时间,记录时间,分段种类,具体事件</string>
 
+
     <!-- Toast 提示 -->
     <string name="toast_start_first">请先开始计时再分段</string>
     <string name="toast_no_records">没有可导出的记录</string>
     <string name="toast_file_saver_fail">文件保存器启动失败</string>
     <string name="toast_export_success">导出成功</string>
-    <string name="toast_export_fail">导出失败: </string>
+
+
+    <string name="toast_export_fail">导出失败，请检查权限或文件路径。</string>
+    <string name="toast_export_wait">正在导出数据，请稍候...</string>
+
+    <string name="toast_import_start">开始导入数据...</string>
+    <string name="toast_import_success">数据导入成功，计时器已更新。</string>
+    <string name="toast_import_fail">数据导入失败，请检查文件格式是否正确（需为8列的CSV文件）。</string>
+    <string name="toast_import_fail_empty">导入失败，文件内容为空或无法读取。</string>
+    <string name="toast_import_fail_header">导入失败，文件头不匹配预期的8列格式。</string>
+    <string name="toast_import_cancel">数据导入操作已取消。</string>
 
     <!-- 其他备用文本 -->
     <string name="hint_detail_short">事件描述</string>
