@@ -115,21 +115,51 @@ public class TimerViewModel extends AndroidViewModel {
         saveState();
     }
 
-    // 【2025-11-22 06:16】新增：添加分段记录
-    // 功能作用：接收新记录并保存
-    // 新增时间：2025年11月22日 06:16
+    // 【2025-11-22 16:10】修复：正确维护 totalLapAccumulatedMillis 累计值
+// 功能作用：确保“间隔累计”列显示各分段时间的真实累加结果
+// 修改时间：2025年11月22日 16:10
     public void addLapRecord(LapRecord record) {
         List<LapRecord> current = new ArrayList<>(lapRecords.getValue());
         current.add(record);
         lapRecords.setValue(current);
         lapIndex = current.size();
+
+        // 【2025-11-22 16:11】关键修复：从 record 的 interval 字段反解析出毫秒值并累加
+        // 注意：此方法仅用于兼容现有架构，理想情况应传入原始 long 值
+        long intervalMillis = parseTimeToMillis(record.getInterval());
+        totalLapAccumulatedMillis += intervalMillis;
+
         Long currentElapsed = elapsedMillis.getValue();
         if (currentElapsed != null) {
             lastLapEndElapsedMillis = currentElapsed;
         }
+
         lapRepository.saveLapRecords(current);
-        LogUtils.log("【TimerViewModel】新增分段记录：" + record.getCategory());
+        LogUtils.log("【TimerViewModel】新增分段记录：" + record.getCategory() +
+                " | 间隔=" + record.getInterval() +
+                " | 累计=" + record.getLapTime() +
+                " | 内部累计值更新为=" + totalLapAccumulatedMillis);
         saveState();
+    }
+
+    // 【2025-11-22 16:12】新增：将格式化的时间字符串（如 "1:02:03.45"）解析为毫秒
+// 功能作用：支持从 LapRecord 的 interval 字段反推原始毫秒值，用于累计计算
+// 新增时间：2025年11月22日 16:12
+    private long parseTimeToMillis(String timeStr) {
+        try {
+            String[] parts = timeStr.split(":");
+            if (parts.length == 3) {
+                String[] secCenti = parts[2].split("\\.");
+                long hours = Long.parseLong(parts[0]);
+                long minutes = Long.parseLong(parts[1]);
+                long seconds = Long.parseLong(secCenti[0]);
+                long centiseconds = secCenti.length > 1 ? Long.parseLong(secCenti[1]) : 0;
+                return ((hours * 3600 + minutes * 60 + seconds) * 1000) + (centiseconds * 10);
+            }
+        } catch (Exception e) {
+            LogUtils.log("【TimerViewModel.parseTimeToMillis】解析时间字符串失败: " + timeStr + " | 错误: " + e.getMessage());
+        }
+        return 0;
     }
 
     // 【2025-11-22 06:17】新增：切换日夜模式
